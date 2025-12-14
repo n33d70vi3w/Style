@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raw Opening Tag Extractor (Regex)</title>
+    <style>
+        /* --- Standard Styles (Mostly Unchanged) --- */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 40px 20px;
+            background-color: #f0f2f5; 
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #007bff;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        .input-group {
+            margin-bottom: 25px;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #495057;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            box-sizing: border-box;
+            resize: vertical;
+            min-height: 150px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        #content-input {
+            height: 50px;
+            min-height: 50px;
+            font-weight: bold;
+        }
+        #extract-button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff; 
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 17px;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+            margin-bottom: 30px; 
+        }
+        #extract-button:hover {
+            background-color: #0056b3;
+        }
+        
+        /* Output Styles */
+        #output-section {
+            padding-top: 20px;
+            border-top: 2px solid #e9ecef;
+        }
+        h2 {
+            color: #28a745;
+            margin-bottom: 10px;
+        }
+        #output-tag {
+            background: #e9f5ff;
+            border: 1px solid #cce5ff;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 14px;
+            color: #d63384;
+            position: relative;
+        }
+        .copy-button {
+            background-color: #28a745; 
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+        .copy-button.copied {
+            background-color: #1e7e34;
+        }
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🎯 Raw Opening Tag Extractor (Regex)</h1>
+        <p class="note">This version uses highly precise Regular Expressions for reliability with complex email HTML.</p>
+        
+        <div class="input-group">
+            <label for="html-input">Input 1: Full HTML Source Code (The Email Body)</label>
+            <textarea id="html-input" placeholder="Paste the entire HTML structure here..."></textarea>
+        </div>
+
+        <div class="input-group">
+            <label for="content-input">Input 2: Specific Content Text (The exact text content inside the tag)</label>
+            <textarea id="content-input" placeholder="Example: Past something" rows="2"></textarea>
+        </div>
+        
+        <button id="extract-button" onclick="extractTag()">Extract Raw Opening Tag</button>
+        
+        <div id="output-section">
+            <h2>Extracted Raw Opening Tag:</h2>
+            <div id="output-tag">
+                Paste input and click 'Extract Raw Opening Tag' to see the result.
+            </div>
+            <button id="copy-output-button" class="copy-button" onclick="copyTagOutput()" style="display: none;">Copy Tag</button>
+        </div>
+
+    </div>
+
+    <script>
+        
+        /**
+         * Escapes special characters in a string to be safely used in a RegExp constructor.
+         * This prevents text like '?' or '*' from breaking the pattern.
+         * @param {string} text 
+         * @returns {string}
+         */
+        function escapeRegExp(text) {
+            return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+        }
+
+        /**
+         * Extracts the raw tag (with attributes) using a precise Regular Expression.
+         */
+        function extractTag() {
+            const htmlInput = document.getElementById('html-input').value;
+            const contentInput = document.getElementById('content-input').value;
+            const outputDiv = document.getElementById('output-tag');
+            const copyButton = document.getElementById('copy-output-button');
+            copyButton.style.display = 'none';
+            outputDiv.classList.remove('error');
+
+            if (!htmlInput || !contentInput) {
+                outputDiv.innerHTML = '<span class="error">Error: Please provide both the HTML source code and the specific content text.</span>';
+                return;
+            }
+
+            // 1. Sanitize the user's content input for use in Regex
+            const escapedContent = escapeRegExp(contentInput.trim());
+
+            // 2. Build the Regex Pattern:
+            // (1) Capture Group: (<[a-z0-9]+[^>]*>) 
+            //    - (<): Start capturing the opening bracket.
+            //    - [a-z0-9]+: Match the tag name (e.g., h4, div).
+            //    - [^>]*: Match any characters that are NOT the closing bracket (this is the attributes).
+            //    - (>): Match the closing bracket of the opening tag.
+            // (2) Content Match: [^<]*? 
+            //    - [^<]*?: Match any characters between the tag and the content (like spaces/newlines).
+            //    - escapedContent: Match the user's actual content.
+            
+            const regexPattern = new RegExp(
+                // Capture the opening tag: <tagName attributes...>
+                '(' + '<[a-z0-9]+[^>]*>' + ')' +
+                // Match any space/text between the tag and the content, then the content itself
+                '[^<]*?' + escapedContent, 
+                'ims' // i: case insensitive, m: multiline, s: dotall mode (dot matches newlines)
+            );
+
+            const match = htmlInput.match(regexPattern);
+
+            if (match && match.length > 1) {
+                // The raw opening tag is in the first capturing group (index 1)
+                const extractedTag = match[1].trim();
+                
+                outputDiv.innerHTML = extractedTag;
+                copyButton.style.display = 'block';
+                copyButton.textContent = 'Copy Tag';
+
+            } else {
+                outputDiv.innerHTML = '<span class="error">Error: Specific content tag could not be located using the content text. Ensure the content is exact.</span>';
+            }
+        }
+
+        /**
+         * Copies the extracted tag to the clipboard.
+         */
+        function copyTagOutput() {
+            const outputDiv = document.getElementById('output-tag');
+            const copyButton = document.getElementById('copy-output-button');
+            const contentToCopy = outputDiv.innerHTML; 
+
+            if (navigator.clipboard && contentToCopy && !outputDiv.classList.contains('error')) {
+                navigator.clipboard.writeText(contentToCopy).then(function() {
+                    const originalText = copyButton.textContent;
+                    copyButton.textContent = 'Copied!';
+                    copyButton.classList.add('copied');
+                    
+                    setTimeout(() => {
+                        copyButton.textContent = originalText;
+                        copyButton.classList.remove('copied');
+                    }, 1500);
+                }).catch(err => {
+                    console.error('Could not copy text: ', err);
+                    alert('Failed to copy the content.');
+                });
+            } else {
+                alert('Output not ready or Clipboard API not available.');
+            }
+        }
+    </script>
+
+</body>
+</html>
